@@ -1885,22 +1885,6 @@ local AddEmojis = function(Message)
 	return Message
 end
 
-local SendMessage = function(Message, Recipient)
-	ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(Message, Recipient and tostring(Recipient) or "All")
-end
-
-local GetPlayer = function(String)
-	if not String then return end
-	for i,v in pairs(Players:GetPlayers()) do
-		if v ~= LocalPlayer and (string.lower(v.Name):match(string.lower(String)) or string.lower(v.DisplayName):match(string.lower(String))) then
-			return v
-		end
-	end
-	return
-end
-
-local IsFired = false
-
 local ExecuteList = function()
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
@@ -2316,6 +2300,22 @@ local script = Instance.new('LocalScript', Frame)
 script.Parent.Draggable = true
 end
 
+local SendMessage = function(Message, Recipient)
+	ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(Message, Recipient and tostring(Recipient) or "All")
+end
+
+local GetPlayer = function(String)
+	if not String then return end
+	for i,v in pairs(Players:GetPlayers()) do
+		if v ~= LocalPlayer and (string.lower(v.Name):match(string.lower(String)) or string.lower(v.DisplayName):match(string.lower(String))) then
+			return v
+		end
+	end
+	return
+end
+
+local IsFired = false
+
 local oldmeta
 oldmeta = hookmetamethod(game, "__namecall", function(self, ...)
 	local arg = {...}
@@ -2323,12 +2323,17 @@ oldmeta = hookmetamethod(game, "__namecall", function(self, ...)
 	if not IsFired and namecall == "FireServer" and self == ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest then
 		IsFired = true
 		local ToSend = nil
+		local SendTo = "All"
 		local Message = arg[1]
 		local Split = Message:split(" ")
-		local PlayerName = LocalPlayer.PlayerGui:FindFirstChild("MessageMode", true) and string.gsub(string.gsub(LocalPlayer.PlayerGui:FindFirstChild("MessageMode", true).Text, "]", ""), "To ", "")
-		local PlayerName = PlayerName and string.sub(PlayerName, 2, #PlayerName)
+		local Mode = LocalPlayer.PlayerGui:FindFirstChild("MessageMode", true) and string.gsub(string.gsub(LocalPlayer.PlayerGui:FindFirstChild("MessageMode", true).Text, "]", ""), "To ", "")
+		local PlayerName = Mode and string.sub(Mode, 2, #Mode)
 		local Player = PlayerName and Players:FindFirstChild(string.gsub(PlayerName, " ", ""))
-		if Player then
+		if Mode == "[System " then
+			ToSend = Message
+			SendTo = "System"
+		end
+		if Player and not ToSend then
 			ToSend = "/w "..Player.Name.." "..AddEmojis(Message)
 		end
 		if not ToSend then
@@ -2337,8 +2342,8 @@ oldmeta = hookmetamethod(game, "__namecall", function(self, ...)
 		if string.lower(Message) == ":list:" then
 			ExecuteList()
 		else
-			SendMessage(ToSend, "All")
-		end
+		        SendMessage(ToSend, SendTo)
+                end
 		IsFired = false
 		return nil
 	end
